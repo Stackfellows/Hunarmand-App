@@ -13,7 +13,7 @@ api.interceptors.request.use(
         if (storedUser) {
             const { token } = JSON.parse(storedUser);
             if (token) {
-                config.headers['x-auth-token'] = token;
+                config.headers.Authorization = `Bearer ${token}`;
             }
         }
         return config;

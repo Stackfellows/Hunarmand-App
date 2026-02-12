@@ -1,9 +1,13 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Mail, Briefcase, MapPin, BadgeCheck, Clock, Hash } from 'lucide-react';
+import { Mail, Briefcase, MapPin, BadgeCheck, Clock, Hash, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function Profile() {
-    const { user } = useAuth();
+    const { user, loading } = useAuth();
+
+    if (loading) return <div className="p-8 text-center text-gray-500">Loading profile...</div>;
+    if (!user) return null;
 
     const InfoItem = ({ icon: Icon, label, value }) => (
         <div className="flex items-center space-x-4 p-4 bg-white rounded-xl shadow-sm border border-gray-50">
@@ -21,6 +25,12 @@ export default function Profile() {
         <div className="bg-gray-50 h-full overflow-y-auto pb-24 scrollbar-hide">
             <div className="bg-gradient-to-br from-[#70b91c] to-[#5da012] pb-24 pt-12 px-6 rounded-b-[3rem] relative shadow-xl overflow-hidden shrink-0">
                 <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
+
+                {/* Back Button */}
+                <Link to="/employee/dashboard" className="absolute top-6 left-6 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/30 transition z-20 border border-white/10 shadow-sm">
+                    <ArrowLeft size={20} />
+                </Link>
+
                 <div className="text-center relative z-10">
                     <div className="relative inline-block">
                         <img
@@ -37,11 +47,11 @@ export default function Profile() {
 
             <div className="px-6 -mt-16 space-y-3 pb-8 relative z-20">
                 <InfoItem icon={Hash} label="ERP ID" value={user?.erpId} />
-                <InfoItem icon={Briefcase} label="Department" value={user?.department} />
-                <InfoItem icon={MapPin} label="Workplace" value={user?.workplace} />
-                <InfoItem icon={Clock} label="Shift" value={user?.shift} />
-                <InfoItem icon={BadgeCheck} label="Status" value={user?.status} />
-                <InfoItem icon={Mail} label="Email" value={user?.email} />
+                <InfoItem icon={Briefcase} label="Department" value={user?.department || 'Production'} />
+                <InfoItem icon={MapPin} label="Workplace" value={user?.workplace || 'Lahore Factory'} />
+                <InfoItem icon={Clock} label="Shift" value={user?.shift || '09:00 - 17:00'} />
+                <InfoItem icon={BadgeCheck} label="Designation" value={user?.title || 'Worker'} />
+                <InfoItem icon={Hash} label="CNIC Number" value={user?.cnic} />
             </div>
 
             <div className="mt-8 px-6">

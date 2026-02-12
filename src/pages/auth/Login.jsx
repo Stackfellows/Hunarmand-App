@@ -1,20 +1,60 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, ChevronRight, ShieldCheck } from 'lucide-react';
+import { Lock, ChevronRight, ShieldCheck } from 'lucide-react';
 
 export default function Login() {
-    const [email, setEmail] = useState('');
+    const [cnic, setCnic] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
-    const { login } = useAuth();
+    const { login, user, loading } = useAuth();
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    React.useEffect(() => {
+        if (!loading && user) {
+            if (user.role === 'admin') {
+                navigate('/admin');
+            } else {
+                navigate('/employee');
+            }
+        }
+    }, [user, loading, navigate]);
+
+    const formatCNIC = (value) => {
+        // Remove all non-digits
+        const digits = value.replace(/\D/g, '');
+
+        // Apply mask: XXXXX-XXXXXXX-X
+        let formatted = '';
+        if (digits.length > 0) {
+            formatted += digits.substring(0, 5);
+        }
+        if (digits.length > 5) {
+            formatted += '-' + digits.substring(5, 12);
+        }
+        if (digits.length > 12) {
+            formatted += '-' + digits.substring(12, 13);
+        }
+
+        return formatted;
+    };
+
+    const handleCnicChange = (e) => {
+        const value = e.target.value;
+        const formatted = formatCNIC(value);
+        if (formatted.length <= 15) { // 13 digits + 2 dashes
+            setCnic(formatted);
+        }
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const result = login(email, password);
+        const result = await login(cnic, password);
         if (result.success) {
-            if (email.includes('admin')) {
+            // Check if user is admin
+            const storedUser = JSON.parse(localStorage.getItem('hunarmand_user'));
+            if (storedUser?.role === 'admin') {
                 navigate('/admin');
             } else {
                 navigate('/employee');
@@ -52,18 +92,18 @@ export default function Login() {
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide ml-1">Email</label>
+                            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide ml-1">CNIC Number</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                    <ShieldCheck className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
                                 </div>
                                 <input
-                                    type="email"
+                                    type="text"
                                     required
                                     className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-gray-900 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all duration-200 placeholder:text-gray-300 font-medium"
-                                    placeholder="name@hunarmand.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="31103-XXXXXXX-X"
+                                    value={cnic}
+                                    onChange={handleCnicChange}
                                 />
                             </div>
                         </div>
@@ -78,13 +118,24 @@ export default function Login() {
                                     <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-primary transition-colors" />
                                 </div>
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     required
-                                    className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-gray-900 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all duration-200 placeholder:text-gray-300 font-medium"
+                                    className="block w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-gray-900 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all duration-200 placeholder:text-gray-300 font-medium"
                                     placeholder="••••••••"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-primary transition-colors"
+                                >
+                                    {showPassword ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye-off"><path d="M9.88 9.88l-3.29-3.29m7.59 7.59l3.29 3.29" /><path d="M2 2l20 20" /><path d="M10.37 4.37a9 9 0 0 1 8 5.23m-4.7 4.7a9 9 0 0 1-11.48-4.7" /><path d="M15.5 15.5l-2.07-2.07" /><path d="M12 12l.01.01" /></svg>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z" /><circle cx="12" cy="12" r="3" /></svg>
+                                    )}
+                                </button>
                             </div>
                         </div>
 
@@ -103,12 +154,7 @@ export default function Login() {
                         </p>
                     </div>
 
-                    <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-                        <div className="text-[10px] text-gray-400 font-mono space-y-1">
-                            <p>Employee: ali@hunarmand.com / password123</p>
-                            <p>Admin: admin@hunarmand.com / adminpassword</p>
-                        </div>
-                    </div>
+
                 </div>
             </div>
 

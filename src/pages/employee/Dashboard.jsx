@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Bell, MapPin, Send } from 'lucide-react';
+import { Bell, MapPin, Send, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import SwipeButton from '../../components/ui/SwipeButton';
 import Modal from '../../components/ui/Modal';
@@ -13,7 +14,9 @@ export default function Dashboard() {
     const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
     const [dailyTask, setDailyTask] = useState('');
     const [notifications, setNotifications] = useState([]);
+    const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -25,7 +28,11 @@ export default function Dashboard() {
             try {
                 const { data } = await api.get('/api/employee/dashboard');
                 if (data.success) {
-                    setNotifications(data.notifications);
+                    setNotifications(data.notifications || []);
+                    setTasks(data.tasks || []);
+                    if (data.attendance) {
+                        setIsCheckedIn(data.attendance.isCheckedIn);
+                    }
                 }
             } catch (err) {
                 console.error("Failed to fetch dashboard data", err);
@@ -41,9 +48,8 @@ export default function Dashboard() {
     const handleSwipe = async () => {
         try {
             const action = isCheckedIn ? 'check-out' : 'check-in';
-            const { data } = await api.post('/api/employee/attendance', {
-                action,
-                userId: user.id
+            const { data } = await api.post('/api/attendance/mark', {
+                action
             });
             if (data.success) {
                 setIsCheckedIn(!isCheckedIn);
@@ -51,7 +57,7 @@ export default function Dashboard() {
             }
         } catch (err) {
             console.error(err);
-            alert('Failed to mark attendance');
+            alert(err.response?.data?.message || 'Failed to mark attendance');
         }
     };
 
@@ -59,8 +65,6 @@ export default function Dashboard() {
         e.preventDefault();
         try {
             const { data } = await api.post('/api/employee/work-progress', {
-                userId: user?.id,
-                userName: user?.name,
                 task: dailyTask
             });
             if (data.success) {
@@ -74,13 +78,25 @@ export default function Dashboard() {
         }
     };
 
+    const handleTaskComplete = async (taskId) => {
+        try {
+            const { data } = await api.patch(`/api/employee/tasks/${taskId}`, { status: 'Completed' });
+            if (data.success) {
+                setTasks(prev => prev.map(t => t._id === taskId ? { ...t, status: 'Completed' } : t));
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to update task status');
+        }
+    };
+
     return (
         <div className="flex flex-col h-full overflow-y-auto pb-24 scrollbar-hide">
             {/* Header */}
             <div className="bg-gradient-to-br from-[#70b91c] to-[#5da012] pt-12 pb-32 px-6 rounded-b-[2.5rem] relative shrink-0 shadow-xl overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
                 <div className="flex justify-between items-center text-white mb-6 relative z-10">
-                    <div className="flex items-center space-x-3">
+                    <Link to="/employee/profile" className="flex items-center space-x-3 hover:opacity-80 transition">
                         <img
                             src={user?.avatar || 'https://via.placeholder.com/150'}
                             alt="Profile"
@@ -90,11 +106,16 @@ export default function Dashboard() {
                             <p className="text-sm opacity-90">Welcome back,</p>
                             <h2 className="text-xl font-bold">{user?.name}</h2>
                         </div>
-                    </div>
-                    <button className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition relative shadow-sm border border-white/10">
+                    </Link>
+                    <button
+                        onClick={() => setIsNotificationOpen(true)}
+                        className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition relative shadow-sm border border-white/10"
+                    >
                         <Bell size={20} />
                         {unreadNotifications > 0 && (
-                            <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-[#6cb31b]"></span>
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-[#6cb31b] font-bold">
+                                {unreadNotifications}
+                            </span>
                         )}
                     </button>
                 </div>
@@ -119,12 +140,42 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="py-8 flex justify-center">
-                            <img
-                                src="https://img.freepik.com/free-vector/time-management-concept-landing-page_52683-22806.jpg?w=740"
-                                alt="Attendance Illustration"
-                                className="w-full max-h-40 object-contain rounded-xl"
-                            />
+                        <div className="py-2 flex flex-col space-y-4">
+                            {/* Assigned Tasks Section */}
+                            {tasks.length > 0 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center">
+                                        <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
+                                        Assigned Tasks
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {tasks.filter(t => t.status === 'Pending').map(task => (
+                                            <div key={task._id} className="p-3 bg-primary/5 border border-primary/10 rounded-xl flex justify-between items-center group animate-in slide-in-from-left duration-300">
+                                                <p className="text-sm text-gray-700 font-medium leading-tight pr-4">{task.description}</p>
+                                                <button
+                                                    onClick={() => handleTaskComplete(task._id)}
+                                                    className="shrink-0 w-8 h-8 rounded-full bg-white border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition"
+                                                >
+                                                    <CheckCircle size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {tasks.filter(t => t.status === 'Pending').length === 0 && (
+                                            <p className="text-xs text-center text-gray-400 py-2">No pending tasks. Great job!</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isCheckedIn && tasks.length === 0 && (
+                                <div className="py-8 flex justify-center">
+                                    <img
+                                        src="https://img.freepik.com/free-vector/time-management-concept-landing-page_52683-22806.jpg?w=740"
+                                        alt="Attendance Illustration"
+                                        className="w-full max-h-40 object-contain rounded-xl"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                     </div>
@@ -159,8 +210,32 @@ export default function Dashboard() {
                             placeholder="e.g. Completed stitching unit, fixed overlap issue..."
                         />
                     </div>
-                    <button type="submit" className="w-full py-2 bg-primary text-white rounded-lg font-bold">Submit Progress</button>
+                    <button type="submit" className="w-full py-2 bg-primary text-white rounded-lg font-bold shadow-lg shadow-primary/20">Submit Progress</button>
                 </form>
+            </Modal>
+
+            {/* Notifications Modal */}
+            <Modal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} title="Notifications">
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                    {notifications.length > 0 ? (
+                        notifications.map((notif) => (
+                            <div key={notif._id} className={`p-4 rounded-2xl border ${notif.read ? 'bg-gray-50 border-gray-100' : 'bg-primary/5 border-primary/10'} transition-all`}>
+                                <div className="flex justify-between items-start mb-1">
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${notif.type === 'Task' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                        {notif.type}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 font-medium">{format(new Date(notif.createdAt), 'hh:mm a')}</span>
+                                </div>
+                                <p className="text-sm text-gray-700 leading-snug">{notif.message}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-10">
+                            <Bell size={40} className="mx-auto text-gray-200 mb-2" />
+                            <p className="text-gray-400 text-sm">No notifications yet</p>
+                        </div>
+                    )}
+                </div>
             </Modal>
         </div>
     );

@@ -12,23 +12,31 @@ export function AuthProvider({ children }) {
             const storedUser = localStorage.getItem('hunarmand_user');
             if (storedUser) {
                 const parsedUser = JSON.parse(storedUser);
-                setUser(parsedUser);
-                // Optional: Verify token with backend
-                // try {
-                //     const { data } = await api.get('/api/auth/me');
-                //     setUser(data.user);
-                // } catch (err) {
-                //     logout();
-                // }
+                // Verify token with backend
+                try {
+                    const { data } = await api.get('/api/auth/me');
+                    if (data.success) {
+                        setUser(data.user);
+                        // Update stored user in case data changed
+                        localStorage.setItem('hunarmand_user', JSON.stringify({ ...data.user, token: parsedUser.token }));
+                    } else {
+                        logout();
+                    }
+                } catch (err) {
+                    console.error('Token verification failed:', err);
+                    logout();
+                }
             }
             setLoading(false);
         };
         checkUser();
     }, []);
 
-    const login = async (email, password) => {
+    const login = async (cnic, password) => {
+        console.log('[DEBUG] Attempting login at:', api.defaults.baseURL + '/api/auth/login');
+        console.log('[DEBUG] Payload:', { cnic, passwordLen: password?.length });
         try {
-            const { data } = await api.post('/api/auth/login', { email, password });
+            const { data } = await api.post('/api/auth/login', { cnic, password });
             if (data.success) {
                 setUser(data.user);
                 // Store user + token
@@ -39,9 +47,11 @@ export function AuthProvider({ children }) {
             }
         } catch (err) {
             console.error(err);
+            const message = err.response?.data?.message ||
+                (err.code === 'ERR_NETWORK' ? 'Cannot connect to server. Did you run "npm run dev"?' : 'Login failed');
             return {
                 success: false,
-                message: err.response?.data?.message || 'Connection error. Is the backend running?'
+                message: message
             };
         }
     };
