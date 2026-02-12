@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { users, attendanceData, addEmployee, addNotification, workProgress } from '../../utils/mockData';
+import { users, attendanceData, addEmployee, addNotification } from '../../utils/mockData';
 import { LogOut, Users, Clock, AlertCircle, CheckCircle, Plus, MessageSquare, List, DollarSign, Calendar, FileText, Shield } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import Modal from '../../components/ui/Modal';
 import api from '../../utils/api';
+import OfficeAccount from '../../components/admin/OfficeAccount';
+import { Wallet } from 'lucide-react';
 
 export default function AdminDashboard() {
     const { logout, user } = useAuth();
     const [employees, setEmployees] = useState([]);
     const [todayAttendance, setTodayAttendance] = useState([]);
+    const [realWorkProgress, setRealWorkProgress] = useState([]);
+    const [activeMainTab, setActiveMainTab] = useState('dashboard'); // 'dashboard' or 'office-account'
     const [loading, setLoading] = useState(true);
     const today = new Date();
 
@@ -46,7 +50,11 @@ export default function AdminDashboard() {
     useEffect(() => {
         fetchEmployees();
         fetchTodayAttendance();
-        const interval = setInterval(fetchTodayAttendance, 30000); // Poll every 30 seconds
+        fetchWorkProgress();
+        const interval = setInterval(() => {
+            fetchTodayAttendance();
+            fetchWorkProgress();
+        }, 30000); // Poll every 30 seconds
         return () => clearInterval(interval);
     }, []);
 
@@ -58,6 +66,17 @@ export default function AdminDashboard() {
             }
         } catch (err) {
             console.error("Failed to fetch today's attendance", err);
+        }
+    };
+
+    const fetchWorkProgress = async () => {
+        try {
+            const { data } = await api.get('/api/admin/work-progress');
+            if (data.success) {
+                setRealWorkProgress(data.workProgress || []);
+            }
+        } catch (err) {
+            console.error("Failed to fetch work progress", err);
         }
     };
 
@@ -179,15 +198,18 @@ export default function AdminDashboard() {
             {/* Admin Header */}
             <header className="bg-white shadow-sm z-10 sticky top-0">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-                    <Link to="/admin" className="flex items-center space-x-2 group">
+                    <button
+                        onClick={() => setActiveMainTab('dashboard')}
+                        className="flex items-center space-x-2 group outline-none"
+                    >
                         <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center transform group-hover:rotate-12 transition shadow-lg shadow-primary/20">
                             <Shield className="text-white" size={24} />
                         </div>
                         <h1 className="text-xl font-black text-gray-900 tracking-tight group-hover:text-primary transition">
                             HUNARMAND <span className="text-primary font-light">PUNJAB</span>
                         </h1>
-                        <span className="ml-3 px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-500">ADMIN</span>
-                    </Link>
+                        <span className="ml-3 px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-500 uppercase">Admin</span>
+                    </button>
                     <div className="flex items-center space-x-4">
                         <Link to="/admin" className="flex items-center space-x-2 hover:opacity-80 transition">
                             <img src={user?.avatar} alt="" className="w-8 h-8 rounded-full border" />
@@ -234,117 +256,132 @@ export default function AdminDashboard() {
                             <span>Payroll</span>
                         </button>
                         <button
-                            onClick={() => setIsAddModalOpen(true)}
-                            className="flex items-center space-x-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-opacity-90 transition"
+                            onClick={() => setActiveMainTab(activeMainTab === 'dashboard' ? 'office-account' : 'dashboard')}
+                            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition shadow-lg ${activeMainTab === 'office-account' ? 'bg-primary text-white shadow-primary/20' : 'bg-gray-900 text-white hover:bg-opacity-90'}`}
                         >
-                            <Plus size={18} />
-                            <span>Add Employee</span>
+                            <Wallet size={18} />
+                            <span>{activeMainTab === 'dashboard' ? 'Office Account' : 'Back to Dashboard'}</span>
                         </button>
+                        {activeMainTab === 'dashboard' && (
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="flex items-center space-x-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-opacity-90 transition"
+                            >
+                                <Plus size={18} />
+                                <span>Add Employee</span>
+                            </button>
+                        )}
                     </div>
                 </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-gray-500 text-sm font-medium">Total Employees</h3>
-                            <Users size={20} className="text-blue-500" />
+                {activeMainTab === 'dashboard' ? (
+                    <>
+                        {/* Stats */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-gray-500 text-sm font-medium">Total Employees</h3>
+                                    <Users size={20} className="text-blue-500" />
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">{employees.length}</p>
+                            </div>
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-gray-500 text-sm font-medium">Present Today</h3>
+                                    <CheckCircle size={20} className="text-green-500" />
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">
+                                    {todayAttendance.filter(a => a.status === 'Present').length}
+                                </p>
+                            </div>
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-gray-500 text-sm font-medium">Late / Absent</h3>
+                                    <AlertCircle size={20} className="text-red-500" />
+                                </div>
+                                <p className="text-3xl font-bold text-gray-900">
+                                    {todayAttendance.filter(a => a.status === 'Late' || a.status === 'Absent').length}
+                                </p>
+                            </div>
                         </div>
-                        <p className="text-3xl font-bold text-gray-900">{employees.length}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-gray-500 text-sm font-medium">Present Today</h3>
-                            <CheckCircle size={20} className="text-green-500" />
-                        </div>
-                        <p className="text-3xl font-bold text-gray-900">
-                            {todayAttendance.filter(a => a.status === 'Present').length}
-                        </p>
-                    </div>
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-gray-500 text-sm font-medium">Late / Absent</h3>
-                            <AlertCircle size={20} className="text-red-500" />
-                        </div>
-                        <p className="text-3xl font-bold text-gray-900">
-                            {todayAttendance.filter(a => a.status === 'Late' || a.status === 'Absent').length}
-                        </p>
-                    </div>
-                </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 text-center">
-                        <h3 className="font-semibold text-gray-900">Employee Overview</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ERP ID</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {employees.map((emp) => (
-                                    <tr key={emp._id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <div className="flex-shrink-0 h-10 w-10">
-                                                    <img className="h-10 w-10 rounded-full border border-gray-200" src={emp.avatar} alt="" />
-                                                </div>
-                                                <div className="ml-4">
-                                                    <div className="text-sm font-bold text-gray-900">{emp.name}</div>
-                                                    <div className="text-xs text-gray-500">{emp.cnic}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {emp.department}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {emp.erpId}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {(() => {
-                                                const record = todayAttendance.find(a => a.user?._id === emp._id);
-                                                if (!record) return (
-                                                    <span className="px-2 inline-flex text-[10px] font-bold rounded-full bg-gray-100 text-gray-500 uppercase">
-                                                        Not Clocked In
-                                                    </span>
-                                                );
-                                                return (
-                                                    <span className={`px-2 inline-flex text-[10px] font-bold rounded-full uppercase ${record.status === 'Present' ? 'bg-green-100 text-green-800' :
-                                                        record.status === 'Late' ? 'bg-yellow-100 text-yellow-800' :
-                                                            'bg-red-100 text-red-800'
-                                                        }`}>
-                                                        {record.status}
-                                                    </span>
-                                                );
-                                            })()}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => openAttendance(emp)}
-                                                className="text-primary hover:text-green-700 bg-primary/10 px-3 py-1 rounded-md"
-                                            >
-                                                Details
-                                            </button>
-                                            <button
-                                                onClick={() => openStats(emp)}
-                                                className="text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1 rounded-md ml-2"
-                                            >
-                                                Stats
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-100 text-center">
+                                <h3 className="font-semibold text-gray-900">Employee Overview</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ERP ID</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {employees.map((emp) => (
+                                            <tr key={emp._id} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center">
+                                                        <div className="flex-shrink-0 h-10 w-10">
+                                                            <img className="h-10 w-10 rounded-full border border-gray-200" src={emp.avatar} alt="" />
+                                                        </div>
+                                                        <div className="ml-4">
+                                                            <div className="text-sm font-bold text-gray-900">{emp.name}</div>
+                                                            <div className="text-xs text-gray-500">{emp.cnic}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {emp.department}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {emp.erpId}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    {(() => {
+                                                        const record = todayAttendance.find(a => a.user?._id === emp._id);
+                                                        if (!record) return (
+                                                            <span className="px-2 inline-flex text-[10px] font-bold rounded-full bg-gray-100 text-gray-500 uppercase">
+                                                                Not Clocked In
+                                                            </span>
+                                                        );
+                                                        return (
+                                                            <span className={`px-2 inline-flex text-[10px] font-bold rounded-full uppercase ${record.status === 'Present' ? 'bg-green-100 text-green-800' :
+                                                                record.status === 'Late' ? 'bg-yellow-100 text-yellow-800' :
+                                                                    'bg-red-100 text-red-800'
+                                                                }`}>
+                                                                {record.status}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <button
+                                                        onClick={() => openAttendance(emp)}
+                                                        className="text-primary hover:text-green-700 bg-primary/10 px-3 py-1 rounded-md"
+                                                    >
+                                                        Details
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openStats(emp)}
+                                                        className="text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1 rounded-md ml-2"
+                                                    >
+                                                        Stats
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <OfficeAccount />
+                )}
             </main>
 
             <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Employee">
@@ -520,16 +557,16 @@ export default function AdminDashboard() {
             {/* Work Progress Feed Modal */}
             <Modal isOpen={isProgressModalOpen} onClose={() => setIsProgressModalOpen(false)} title="Employee Work Progress">
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-                    {workProgress.length > 0 ? (
-                        workProgress.map((item) => (
-                            <div key={item.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    {realWorkProgress.length > 0 ? (
+                        realWorkProgress.map((item) => (
+                            <div key={item._id} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center space-x-2">
                                         <div className="font-bold text-gray-900">{item.userName}</div>
                                         <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">{item.date}</span>
                                     </div>
                                     <span className={`text-[10px] px-2 py-1 rounded-full uppercase font-bold tracking-wider ${item.status === 'Reviewed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                        {item.status}
+                                        {item.status || 'Pending'}
                                     </span>
                                 </div>
                                 <p className="text-gray-700 text-sm leading-relaxed">{item.task}</p>
