@@ -9,6 +9,7 @@ import Attendance from './pages/employee/Attendance';
 import Profile from './pages/employee/Profile';
 
 import AdminDashboard from './pages/admin/AdminDashboard';
+import SalarySlip from './components/admin/SalarySlip';
 
 function PrivateRoute({ children, role }) {
   const { user, loading } = useAuth();
@@ -37,6 +38,14 @@ function AppContent() {
         <Route path="attendance" element={<Attendance />} />
         <Route path="profile" element={<Profile />} />
       </Route>
+      <Route
+        path="/salary-slip/:id"
+        element={
+          <PrivateRoute role="admin">
+            <SalarySlip />
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/admin/*"
         element={

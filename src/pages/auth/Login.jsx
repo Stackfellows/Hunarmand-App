@@ -74,8 +74,8 @@ export default function Login() {
                 {/* Header Section */}
                 <div className="pt-10 pb-6 px-8 text-center bg-white relative">
                     <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary to-[#5da012]"></div>
-                    <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-3xl mb-4 shadow-sm transform hover:scale-105 transition-transform duration-300">
-                        <ShieldCheck size={40} className="text-primary" />
+                    <div className="inline-flex items-center justify-center w-24 h-24 bg-white rounded-full mb-4 shadow-md p-4 transform hover:scale-105 transition-transform duration-300 border border-gray-100">
+                        <img src="/tab.png" alt="Hunarmand Punjab Logo" className="w-full h-full object-contain" />
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Hunarmand Punjab</h2>
                     <p className="text-gray-500 text-sm mt-1">Official Workforce Portal</p>

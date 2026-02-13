@@ -48,9 +48,9 @@ export default function Profile() {
             <div className="px-6 -mt-16 space-y-3 pb-8 relative z-20">
                 <InfoItem icon={Hash} label="ERP ID" value={user?.erpId} />
                 <InfoItem icon={Briefcase} label="Department" value={user?.department || 'Production'} />
-                <InfoItem icon={MapPin} label="Workplace" value={user?.workplace || 'Lahore Factory'} />
+                <InfoItem icon={MapPin} label="Workplace" value={user?.workplace || 'Gardan Town Lahore'} />
                 <InfoItem icon={Clock} label="Shift" value={user?.shift || '09:00 - 17:00'} />
-                <InfoItem icon={BadgeCheck} label="Designation" value={user?.title || 'Worker'} />
+                <InfoItem icon={BadgeCheck} label="Designation" value={user?.title || 'Employee'} />
                 <InfoItem icon={Hash} label="CNIC Number" value={user?.cnic} />
             </div>
 

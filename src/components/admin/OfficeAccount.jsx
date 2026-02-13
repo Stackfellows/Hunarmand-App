@@ -20,18 +20,23 @@ import {
     Trash2,
     Edit3,
     Users,
-    Settings
+    Settings,
+    CreditCard,
+    Receipt
 } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../../utils/api';
+import PaymentAccounts from './PaymentAccounts';
+import Transactions from './Transactions';
 
 export default function OfficeAccount() {
-    const [activeSubTab, setActiveSubTab] = useState('expenses'); // 'expenses', 'add', 'reports'
+    const [activeSubTab, setActiveSubTab] = useState('expenses'); // 'expenses', 'add', 'reports', 'payment-accounts', 'transactions'
     const [expenseFilter, setExpenseFilter] = useState('daily'); // 'daily', 'monthly', 'yearly'
     const [expenses, setExpenses] = useState([]);
     const [totalAmount, setTotalAmount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [paymentAccounts, setPaymentAccounts] = useState([]);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -39,14 +44,30 @@ export default function OfficeAccount() {
         amount: '',
         date: new Date().toISOString().split('T')[0],
         category: '',
-        notes: ''
+        notes: '',
+        paymentAccountId: '',
+        transactionId: ''
     });
 
     useEffect(() => {
         if (activeSubTab === 'expenses') {
             fetchExpenses();
         }
+        if (activeSubTab === 'add') {
+            fetchPaymentAccounts();
+        }
     }, [activeSubTab, expenseFilter, filterDate]);
+
+    const fetchPaymentAccounts = async () => {
+        try {
+            const { data } = await api.get('/api/payment-accounts');
+            if (data.success) {
+                setPaymentAccounts(data.data || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch payment accounts', err);
+        }
+    };
 
     const fetchExpenses = async () => {
         setLoading(true);
@@ -86,7 +107,9 @@ export default function OfficeAccount() {
                     amount: '',
                     date: new Date().toISOString().split('T')[0],
                     category: '',
-                    notes: ''
+                    notes: '',
+                    paymentAccountId: '',
+                    transactionId: ''
                 });
                 setActiveSubTab('expenses');
                 fetchExpenses();
@@ -149,22 +172,34 @@ export default function OfficeAccount() {
                     <h2 className="text-2xl font-bold text-gray-800">Office Account</h2>
                     <p className="text-sm text-gray-500">Manage workplace expenditures and financial reports</p>
                 </div>
-                <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
                     <button
                         onClick={() => setActiveSubTab('expenses')}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeSubTab === 'expenses' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${activeSubTab === 'expenses' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
                     >
                         Expenses
                     </button>
                     <button
                         onClick={() => setActiveSubTab('add')}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeSubTab === 'add' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${activeSubTab === 'add' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
                     >
                         Add New
                     </button>
                     <button
+                        onClick={() => setActiveSubTab('payment-accounts')}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${activeSubTab === 'payment-accounts' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+                    >
+                        Payment Accounts
+                    </button>
+                    <button
+                        onClick={() => setActiveSubTab('transactions')}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${activeSubTab === 'transactions' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+                    >
+                        Transactions
+                    </button>
+                    <button
                         onClick={() => setActiveSubTab('reports')}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeSubTab === 'reports' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${activeSubTab === 'reports' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
                     >
                         Reports
                     </button>
@@ -337,6 +372,78 @@ export default function OfficeAccount() {
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition resize-none"
                                 ></textarea>
                             </div>
+
+                            {/* Payment Details Section */}
+                            <div className="pt-4 border-t border-gray-200">
+                                <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center">
+                                    <CreditCard size={16} className="mr-2 text-primary" />
+                                    Payment Details
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Payment Account</label>
+                                        <select
+                                            value={formData.paymentAccountId}
+                                            onChange={(e) => setFormData({ ...formData, paymentAccountId: e.target.value })}
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition appearance-none cursor-pointer"
+                                        >
+                                            <option value="">💰 Select Payment Account (Optional)</option>
+
+                                            {/* Group Bank Accounts */}
+                                            {paymentAccounts.filter(acc => acc.accountType === 'Bank').length > 0 && (
+                                                <optgroup label="🏦 Bank Accounts">
+                                                    {paymentAccounts
+                                                        .filter(acc => acc.accountType === 'Bank')
+                                                        .map(acc => (
+                                                            <option key={acc._id} value={acc._id}>
+                                                                {acc.accountName} - {acc.bankName}
+                                                            </option>
+                                                        ))
+                                                    }
+                                                </optgroup>
+                                            )}
+
+                                            {/* Group Mobile Wallets */}
+                                            {paymentAccounts.filter(acc => acc.accountType !== 'Bank' && acc.accountType !== 'Other').length > 0 && (
+                                                <optgroup label="📱 Mobile Wallets">
+                                                    {paymentAccounts
+                                                        .filter(acc => acc.accountType !== 'Bank' && acc.accountType !== 'Other')
+                                                        .map(acc => (
+                                                            <option key={acc._id} value={acc._id}>
+                                                                {acc.accountName} ({acc.accountType})
+                                                            </option>
+                                                        ))
+                                                    }
+                                                </optgroup>
+                                            )}
+
+                                            {/* Group Other Accounts */}
+                                            {paymentAccounts.filter(acc => acc.accountType === 'Other').length > 0 && (
+                                                <optgroup label="💼 Other Accounts">
+                                                    {paymentAccounts
+                                                        .filter(acc => acc.accountType === 'Other')
+                                                        .map(acc => (
+                                                            <option key={acc._id} value={acc._id}>
+                                                                {acc.accountName}
+                                                            </option>
+                                                        ))
+                                                    }
+                                                </optgroup>
+                                            )}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Transaction ID</label>
+                                        <input
+                                            type="text"
+                                            value={formData.transactionId}
+                                            onChange={(e) => setFormData({ ...formData, transactionId: e.target.value })}
+                                            placeholder="e.g. TXN123456789"
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                             <button
                                 type="submit"
                                 className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] transition-all"
@@ -418,6 +525,10 @@ export default function OfficeAccount() {
                     </div>
                 </div>
             )}
+
+            {activeSubTab === 'payment-accounts' && <PaymentAccounts />}
+
+            {activeSubTab === 'transactions' && <Transactions />}
         </div>
     );
 }

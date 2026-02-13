@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { users, attendanceData, addEmployee, addNotification } from '../../utils/mockData';
@@ -7,14 +8,17 @@ import { format, isSameDay } from 'date-fns';
 import Modal from '../../components/ui/Modal';
 import api from '../../utils/api';
 import OfficeAccount from '../../components/admin/OfficeAccount';
-import { Wallet } from 'lucide-react';
+import Payroll from '../../components/admin/Payroll';
+import { Wallet, CalendarCheck } from 'lucide-react';
+import AttendancePayroll from '../../components/admin/AttendancePayroll';
+import { compressImage } from '../../utils/imageCompression';
 
 export default function AdminDashboard() {
     const { logout, user } = useAuth();
     const [employees, setEmployees] = useState([]);
     const [todayAttendance, setTodayAttendance] = useState([]);
     const [realWorkProgress, setRealWorkProgress] = useState([]);
-    const [activeMainTab, setActiveMainTab] = useState('dashboard'); // 'dashboard' or 'office-account'
+    const [activeMainTab, setActiveMainTab] = useState('dashboard'); // 'dashboard', 'office-account', 'payroll', 'attendance-payroll'
     const [loading, setLoading] = useState(true);
     const today = new Date();
 
@@ -156,18 +160,32 @@ export default function AdminDashboard() {
         const file = e.target.files[0];
         if (!file) return;
 
-        const formData = new FormData();
-        formData.append('image', file);
-
         setIsUploading(true);
         try {
-            const { data } = await api.post('/api/upload', formData);
+            // Compress image before upload
+            // Max width 800px, quality 0.7
+            const compressedFile = await compressImage(file, 0.7, 800);
+
+            const formData = new FormData();
+            formData.append('image', compressedFile);
+
+            // Use axios directly to avoid default Content-Type: application/json from api instance
+            const token = JSON.parse(localStorage.getItem('hunarmand_user'))?.token;
+            const baseUrl = import.meta.env.VITE_API_URL || 'https://hunarmandpunjabbackend.onrender.com';
+
+            const { data } = await axios.post(`${baseUrl}/api/upload`, formData, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                    // Content-Type is left undefined so browser sets it with boundary
+                }
+            });
+
             if (data.success) {
                 setNewEmployee({ ...newEmployee, avatar: data.imageUrl });
             }
         } catch (error) {
             console.error('Image upload failed', error);
-            alert('Image upload failed');
+            alert('Image upload failed: ' + (error.message || 'Unknown error'));
         } finally {
             setIsUploading(false);
         }
@@ -212,21 +230,20 @@ export default function AdminDashboard() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
                     <button
                         onClick={() => setActiveMainTab('dashboard')}
-                        className="flex items-center space-x-2 group outline-none"
+                        className="flex items-center space-x-3 group outline-none"
                     >
-                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center transform group-hover:rotate-12 transition shadow-lg shadow-primary/20">
-                            <Shield className="text-white" size={24} />
-                        </div>
+                        {/* Logo added here as requested */}
+                        <img src="/tab.png" alt="Logo" className="w-10 h-10 object-contain" />
                         <h1 className="text-xl font-black text-gray-900 tracking-tight group-hover:text-primary transition">
                             HUNARMAND <span className="text-primary font-light">PUNJAB</span>
                         </h1>
                         <span className="ml-3 px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-500 uppercase">Admin</span>
                     </button>
                     <div className="flex items-center space-x-4">
-                        <Link to="/admin" className="flex items-center space-x-2 hover:opacity-80 transition">
-                            <img src={user?.avatar} alt="" className="w-8 h-8 rounded-full border" />
-                            <span className="text-sm font-medium text-gray-700 hidden md:block">{user?.name}</span>
-                        </Link>
+                        {/* Avatar removed and replaced with logo as requested ("admin system a rha os k sth avter haata kr yaa logo add kro") */}
+                        <div className="flex items-center space-x-2">
+                            <img src="/tab.png" alt="Logo" className="w-8 h-8 object-contain" />
+                        </div>
                         <button onClick={logout} className="text-gray-500 hover:text-red-600 transition">
                             <LogOut size={20} />
                         </button>
@@ -236,9 +253,9 @@ export default function AdminDashboard() {
 
             <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
                 {/* Actions Bar */}
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                     <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
-                    <div className="flex space-x-3">
+                    <div className="flex flex-wrap gap-3 w-full md:w-auto">
                         <button
                             onClick={() => setIsBroadcastModalOpen(true)}
                             className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition"
@@ -266,20 +283,20 @@ export default function AdminDashboard() {
                             )}
                         </button>
                         <button
-                            onClick={() => setIsPayrollModalOpen(true)}
-                            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                            onClick={() => setActiveMainTab(activeMainTab === 'dashboard' ? 'attendance-payroll' : 'dashboard')}
+                            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition shadow-lg ${activeMainTab === 'attendance-payroll' ? 'bg-primary text-white shadow-primary/20' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
                         >
-                            <DollarSign size={18} />
-                            <span>Payroll</span>
+                            <CalendarCheck size={18} />
+                            <span>{activeMainTab === 'attendance-payroll' ? 'Back to Dashboard' : 'Employee Management'}</span>
                         </button>
                         <button
                             onClick={() => setActiveMainTab(activeMainTab === 'dashboard' ? 'office-account' : 'dashboard')}
                             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition shadow-lg ${activeMainTab === 'office-account' ? 'bg-primary text-white shadow-primary/20' : 'bg-gray-900 text-white hover:bg-opacity-90'}`}
                         >
                             <Wallet size={18} />
-                            <span>{activeMainTab === 'dashboard' ? 'Office Account' : 'Back to Dashboard'}</span>
+                            <span>{activeMainTab === 'office-account' ? 'Back to Dashboard' : 'Office Account'}</span>
                         </button>
-                        {activeMainTab === 'dashboard' && (
+                        {(activeMainTab === 'dashboard' || activeMainTab === 'attendance-payroll') && (
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
                                 className="flex items-center space-x-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-opacity-90 transition"
@@ -294,6 +311,7 @@ export default function AdminDashboard() {
                 {activeMainTab === 'dashboard' ? (
                     <>
                         {/* Stats */}
+                        {/* ... existing dashboard content ... */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                                 <div className="flex items-center justify-between mb-4">
@@ -396,8 +414,10 @@ export default function AdminDashboard() {
                             </div>
                         </div>
                     </>
-                ) : (
+                ) : activeMainTab === 'office-account' ? (
                     <OfficeAccount />
+                ) : (
+                    <AttendancePayroll employeesProp={employees} />
                 )}
             </main>
 
@@ -414,14 +434,32 @@ export default function AdminDashboard() {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Profile Image</label>
                         <div className="flex items-center space-x-4">
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="w-full px-3 py-2 border rounded-lg"
-                            />
-                            {isUploading && <span className="text-sm text-blue-600">Uploading...</span>}
-                            {newEmployee.avatar && <img src={newEmployee.avatar} alt="Preview" className="w-10 h-10 rounded-full object-cover border" />}
+                            <div className="relative">
+                                <img
+                                    src={newEmployee.avatar || "https://res.cloudinary.com/dphBu5ZJt/image/upload/v1740000000/placeholder_avatar.png"}
+                                    alt="Profile"
+                                    className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                                    onError={(e) => e.target.src = "https://ui-avatars.com/api/?name=Employee&background=random"}
+                                />
+                                {isUploading && (
+                                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <label className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition shadow-sm">
+                                    {isUploading ? 'Compressing & Uploading...' : 'Choose Image'}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        className="hidden"
+                                        disabled={isUploading}
+                                    />
+                                </label>
+                                <p className="text-[10px] text-gray-400 mt-1">Max 5MB. Auto-compressed.</p>
+                            </div>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
