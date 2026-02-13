@@ -15,6 +15,7 @@ export default function Dashboard() {
     const [dailyTask, setDailyTask] = useState('');
     const [notifications, setNotifications] = useState([]);
     const [tasks, setTasks] = useState([]);
+    const [myProgress, setMyProgress] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
@@ -30,6 +31,7 @@ export default function Dashboard() {
                 if (data.success) {
                     setNotifications(data.notifications || []);
                     setTasks(data.tasks || []);
+                    setMyProgress(data.workProgress || []);
                     if (data.attendance) {
                         setIsCheckedIn(data.attendance.isCheckedIn);
                     }
@@ -167,7 +169,33 @@ export default function Dashboard() {
                                 </div>
                             )}
 
-                            {!isCheckedIn && tasks.length === 0 && (
+                            {/* My Recent Progress Section */}
+                            {myProgress.length > 0 && (
+                                <div className="space-y-3 mt-4">
+                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center justify-between">
+                                        <div className="flex items-center">
+                                            <span className="w-2 h-2 bg-gray-300 rounded-full mr-2"></span>
+                                            Recent Reports
+                                        </div>
+                                        <span className="text-[10px] font-normal lowercase">{myProgress.length} shared</span>
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {myProgress.slice(0, 3).map(progress => (
+                                            <div key={progress._id} className="p-3 bg-gray-50 border border-gray-100 rounded-xl flex justify-between items-center group">
+                                                <div className="flex-1 pr-4">
+                                                    <p className="text-xs text-gray-600 line-clamp-1 italic">"{progress.task}"</p>
+                                                    <p className="text-[9px] text-gray-400 mt-0.5">{progress.date}</p>
+                                                </div>
+                                                <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${progress.status === 'Reviewed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                    {progress.status === 'Reviewed' ? 'OK' : 'Sent'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isCheckedIn && tasks.length === 0 && myProgress.length === 0 && (
                                 <div className="py-8 flex justify-center">
                                     <img
                                         src="https://img.freepik.com/free-vector/time-management-concept-landing-page_52683-22806.jpg?w=740"
@@ -189,10 +217,15 @@ export default function Dashboard() {
 
                         <button
                             onClick={() => setIsProgressModalOpen(true)}
-                            className="w-full mt-4 py-3 bg-gray-50 text-gray-600 rounded-xl font-medium border border-gray-200 hover:bg-gray-100 transition flex items-center justify-center space-x-2"
+                            className="w-full mt-4 py-3 bg-gray-50 text-gray-600 rounded-xl font-medium border border-gray-200 hover:bg-gray-100 transition flex items-center justify-center space-x-2 relative"
                         >
                             <Send size={18} />
                             <span>Share Daily Progress</span>
+                            {myProgress.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white font-bold">
+                                    {myProgress.length}
+                                </span>
+                            )}
                         </button>
                     </div>
                 </div>

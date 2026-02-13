@@ -80,6 +80,18 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleUpdateProgressStatus = async (id, status) => {
+        try {
+            const { data } = await api.patch(`/api/admin/work-progress/${id}`, { status });
+            if (data.success) {
+                setRealWorkProgress(prev => prev.map(p => p._id === id ? { ...p, status } : p));
+            }
+        } catch (err) {
+            console.error("Failed to update progress status", err);
+            alert("Failed to update status");
+        }
+    };
+
     const fetchEmployees = async () => {
         try {
             const { data } = await api.get('/api/admin/employees');
@@ -243,10 +255,15 @@ export default function AdminDashboard() {
                         </button>
                         <button
                             onClick={() => setIsProgressModalOpen(true)}
-                            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition relative"
                         >
                             <FileText size={18} />
                             <span>Work Progress</span>
+                            {realWorkProgress.filter(p => p.status !== 'Reviewed').length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white font-bold">
+                                    {realWorkProgress.filter(p => p.status !== 'Reviewed').length}
+                                </span>
+                            )}
                         </button>
                         <button
                             onClick={() => setIsPayrollModalOpen(true)}
@@ -556,24 +573,57 @@ export default function AdminDashboard() {
 
             {/* Work Progress Feed Modal */}
             <Modal isOpen={isProgressModalOpen} onClose={() => setIsProgressModalOpen(false)} title="Employee Work Progress">
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="flex justify-between items-center mb-2 px-1">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Daily Reports Feed</p>
+                        <span className="text-[10px] bg-gray-100 px-2 py-1 rounded text-gray-400 font-bold uppercase">
+                            Total: {realWorkProgress.length}
+                        </span>
+                    </div>
                     {realWorkProgress.length > 0 ? (
                         realWorkProgress.map((item) => (
-                            <div key={item._id} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center space-x-2">
-                                        <div className="font-bold text-gray-900">{item.userName}</div>
-                                        <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">{item.date}</span>
+                            <div key={item._id} className={`p-4 rounded-xl border transition-all ${item.status === 'Reviewed' ? 'bg-green-50/30 border-green-100' : 'bg-white border-gray-100 shadow-sm'}`}>
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                            {item.userName?.charAt(0) || 'E'}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-gray-900 text-sm">{item.userName}</div>
+                                            <div className="text-[10px] text-gray-400 font-medium uppercase">{item.date}</div>
+                                        </div>
                                     </div>
-                                    <span className={`text-[10px] px-2 py-1 rounded-full uppercase font-bold tracking-wider ${item.status === 'Reviewed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                        {item.status || 'Pending'}
-                                    </span>
+                                    <div className="flex items-center space-x-2">
+                                        <span className={`text-[9px] px-2 py-1 rounded-full uppercase font-black tracking-tighter ${item.status === 'Reviewed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700 font-bold'}`}>
+                                            {item.status === 'Reviewed' ? 'OK / Reviewed' : 'Pending Review'}
+                                        </span>
+                                        {item.status !== 'Reviewed' ? (
+                                            <button
+                                                onClick={() => handleUpdateProgressStatus(item._id, 'Reviewed')}
+                                                className="text-[10px] bg-primary text-white px-3 py-1.5 rounded-lg font-bold hover:bg-primary/90 transition shadow-sm"
+                                            >
+                                                Mark OK
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleUpdateProgressStatus(item._id, 'Pending')}
+                                                className="text-[10px] bg-gray-100 text-gray-500 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-200 transition"
+                                            >
+                                                UNDO
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <p className="text-gray-700 text-sm leading-relaxed">{item.task}</p>
+                                <div className="pl-11">
+                                    <p className="text-gray-700 text-sm leading-relaxed italic">"{item.task}"</p>
+                                </div>
                             </div>
                         ))
                     ) : (
-                        <div className="text-center py-8 text-gray-500">No progress reports submitted yet.</div>
+                        <div className="text-center py-12">
+                            <FileText size={40} className="mx-auto text-gray-200 mb-2" />
+                            <p className="text-gray-400 text-sm">No progress reports submitted yet.</p>
+                        </div>
                     )}
                 </div>
             </Modal>
